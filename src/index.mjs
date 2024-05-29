@@ -1,6 +1,10 @@
 import express from "express";
 
 const app = express();
+
+// parse json information
+app.use(express.json());
+
 const PORT = process.env.PORT || 3000;
 
 const mockUsers = [
@@ -31,6 +35,13 @@ app.get("/api/users", (req, res) => {
   return res.send(mockUsers);
 });
 
+app.post("/api/users", (req, res) => {
+  const { body } = req;
+  const newUser = { id: mockUsers.length + 1, ...body };
+  mockUsers.push(newUser);
+  return res.status(201).send(newUser);
+});
+
 app.get("/api/users/:id", (req, res) => {
   console.log(req.params);
   const parseId = parseInt(req.params.id);
@@ -53,6 +64,21 @@ app.get("/api/products", (req, res) => {
     { id: 123, name: "Product 1" },
     { id: 456, name: "Product 2" },
   ]);
+});
+
+app.put("/api/users/:id", (req, res) => {
+  const {
+    body,
+    params: { id },
+  } = req;
+
+  const parsedId = parseInt(id);
+  if (isNaN(parsedId)) return res.status(400);
+  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
+  if (findUserIndex === -1) return res.status(404);
+  mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
+
+  return res.sendStatus(200);
 });
 
 app.listen(PORT, () => {
