@@ -1,4 +1,4 @@
-import express from "express";
+import express, { query } from "express";
 
 const app = express();
 
@@ -22,16 +22,19 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/users", (req, res) => {
-  console.log(req.query);
-
   const {
     query: { filter, value },
   } = req;
 
+  // si no hay filtro y no hay value devuelvo todos los usuarios
   if (!filter && !value) return res.send(mockUsers);
+
+  // si hay un filtro y un valor devuelvo el usuario filtrado
   if (filter && value) {
     return res.send(mockUsers.filter((user) => user[filter].includes(value)));
   }
+
+  // si solo hay un filtro devuelvo el usuario filtrado
   return res.send(mockUsers);
 });
 
@@ -43,15 +46,18 @@ app.post("/api/users", (req, res) => {
 });
 
 app.get("/api/users/:id", (req, res) => {
-  console.log(req.params);
+  // convierte el id a entero
   const parseId = parseInt(req.params.id);
-  console.log(parseId);
 
+  // si el id no es un numero devuelvo un error
   if (isNaN(parseId)) {
     return res.status(400).send({ msg: "Bad request. Invalid ID" });
   }
+
+  //busca el usuario por el id
   const findUser = mockUsers.find((user) => user.id === parseId);
 
+  // evalúa si el usuario existe para poder devolverlo sino devuelve un error
   if (findUser) {
     return res.send(findUser);
   } else {
@@ -67,14 +73,22 @@ app.get("/api/products", (req, res) => {
 });
 
 app.put("/api/users/:id", (req, res) => {
+  // descompone el request para obtener el body y el id
   const {
     body,
     params: { id },
   } = req;
 
+  // convierte el id a entero
   const parsedId = parseInt(id);
+
+  // si el id no es un numero devuelvo un error
   if (isNaN(parsedId)) return res.status(400);
+
+  //busca el usuario por el id
   const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
+
+  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
   if (findUserIndex === -1) return res.status(404);
   mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
 
