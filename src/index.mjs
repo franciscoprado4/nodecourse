@@ -95,6 +95,27 @@ app.put("/api/users/:id", (req, res) => {
   return res.sendStatus(200);
 });
 
+app.patch("/api/users/:id", (req, res) => {
+  // descompone el request para obtener el body y el id
+  const {
+    body,
+    params: { id },
+  } = req;
+
+  // convierte el id a entero
+  const parsedId = parseInt(id);
+  // si el id no es un numero devuelvo un error
+  if (isNaN(parsedId)) return res.status(400);
+  //busca el usuario por el id
+  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
+  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
+  if (findUserIndex === -1) return res.status(404);
+  // actualiza el usuario
+  mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
+  // devuelvo el usuario actualizado
+  return res.sendStatus(200);
+});
+
 app.listen(PORT, () => {
   console.log(`Running on port ${PORT}`);
 });
