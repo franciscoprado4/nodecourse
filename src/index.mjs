@@ -5,6 +5,12 @@ const app = express();
 // parse json information
 app.use(express.json());
 
+const loggingMiddleware = (req, res, next) => {
+  console.log(`${req.method} - ${req.url}`);
+  next();
+};
+app.use(loggingMiddleware);
+
 const PORT = process.env.PORT || 3000;
 
 const mockUsers = [
@@ -17,9 +23,27 @@ const mockUsers = [
   { id: 7, username: "marilyn", displayname: "Marilyn" },
 ];
 
-app.get("/", (req, res) => {
+app.get("/", loggingMiddleware, (req, res) => {
   res.status(200).send({ msg: "Hello World" });
 });
+
+// Middleware para resolver el id
+const resolveIndexByUserId = (req, res, next) => {
+  const {
+    body,
+    params: { id },
+  } = req;
+  // convierte el id a entero
+  const parsedId = parseInt(id);
+  // si el id no es un numero devuelvo un error
+  if (isNaN(parsedId)) return res.status(400);
+  //busca el usuario por el id
+  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
+  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
+  if (findUserIndex === -1) return res.status(404);
+  req.findUserIndex = findUserIndex;
+  next();
+};
 
 app.get("/api/users", (req, res) => {
   const {
@@ -28,12 +52,10 @@ app.get("/api/users", (req, res) => {
 
   // si no hay filtro y no hay value devuelvo todos los usuarios
   if (!filter && !value) return res.send(mockUsers);
-
   // si hay un filtro y un valor devuelvo el usuario filtrado
   if (filter && value) {
     return res.send(mockUsers.filter((user) => user[filter].includes(value)));
   }
-
   // si solo hay un filtro devuelvo el usuario filtrado
   return res.send(mockUsers);
 });
@@ -46,23 +68,10 @@ app.post("/api/users", (req, res) => {
 });
 
 app.get("/api/users/:id", (req, res) => {
-  // convierte el id a entero
-  const parseId = parseInt(req.params.id);
-
-  // si el id no es un numero devuelvo un error
-  if (isNaN(parseId)) {
-    return res.status(400).send({ msg: "Bad request. Invalid ID" });
-  }
-
-  //busca el usuario por el id
-  const findUser = mockUsers.find((user) => user.id === parseId);
-
-  // evalúa si el usuario existe para poder devolverlo sino devuelve un error
-  if (findUser) {
-    return res.send(findUser);
-  } else {
-    return res.status(404).send({ msg: "User not found" });
-  }
+  const { findUserIndex } = req;
+  const findUser = mockUsers[findUserIndex];
+  if (!findUser) return res.sendStatus(404);
+  return res.send(findUser);
 });
 
 app.get("/api/products", (req, res) => {
@@ -72,64 +81,26 @@ app.get("/api/products", (req, res) => {
   ]);
 });
 
-app.put("/api/users/:id", (req, res) => {
-  // descompone el request para obtener el body y el id
-  const {
-    body,
-    params: { id },
-  } = req;
-
-  // convierte el id a entero
-  const parsedId = parseInt(id);
-
-  // si el id no es un numero devuelvo un error
-  if (isNaN(parsedId)) return res.status(400);
-
-  //busca el usuario por el id
-  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
-
-  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
-  if (findUserIndex === -1) return res.status(404);
-  mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
-
+app.put("/api/users/:id", resolveIndexByUserId, (req, res) => {
+  const { body, findUserIndex } = req;
+  mockUsers[findUserIndex] = { id: mockUsers[findUserIndex].id, ...body };
   return res.sendStatus(200);
 });
 
-app.patch("/api/users/:id", (req, res) => {
+app.patch("/api/users/:id", resolveIndexByUserId, (req, res) => {
   // descompone el request para obtener el body y el id
-  const {
-    body,
-    params: { id },
-  } = req;
-
-  // convierte el id a entero
-  const parsedId = parseInt(id);
-  // si el id no es un numero devuelvo un error
-  if (isNaN(parsedId)) return res.status(400);
-  //busca el usuario por el id
-  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
-  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
-  if (findUserIndex === -1) return res.status(404);
+  const { body, findUserIndex } = req;
   // actualiza el usuario
   mockUsers[findUserIndex] = { ...mockUsers[findUserIndex], ...body };
   // devuelvo el usuario actualizado
   return res.sendStatus(200);
 });
 
-app.delete("/api/users/:id", (req, res) => {
+app.delete("/api/users/:id", resolveIndexByUserId, (req, res) => {
   // descompone el request para obtener el id
-  const {
-    params: { id },
-  } = req;
-  // convierte el id a entero
-  const parsedId = parseInt(id);
-  // si el id no es un numero devuelvo un error
-  if (isNaN(parsedId)) return res.status(400);
-  //busca el usuario por el id
-  const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
-  // evaluar si el usuario existe para poder devolverlo sino devuelve un error
-  if (findUserIndex === -1) return res.status(404);
-  // actualiza el usuario
+  const { findUserIndex } = req;
+
+  // elimina el usuario de la lista
   mockUsers.splice(findUserIndex, 1);
   // devuelvo el usuario actualizado
   return res.sendStatus(200);
