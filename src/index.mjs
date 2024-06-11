@@ -1,4 +1,5 @@
-import express, { query } from "express";
+import express from "express";
+import { query, validationResult, body, matchedData } from "express-validator";
 
 const app = express();
 
@@ -45,27 +46,59 @@ const resolveIndexByUserId = (req, res, next) => {
   next();
 };
 
-app.get("/api/users", (req, res) => {
-  const {
-    query: { filter, value },
-  } = req;
+//Validation
+app.get(
+  "/api/users",
+  query("filter")
+    .isString()
+    .notEmpty()
+    .withMessage("Must no be empty")
+    .isLength({ min: 3, max: 10 })
+    .withMessage("Must be between 3 and 10 characters"),
+  (req, res) => {
+    const result = validationResult(req);
+    console.log(result);
 
-  // si no hay filtro y no hay value devuelvo todos los usuarios
-  if (!filter && !value) return res.send(mockUsers);
-  // si hay un filtro y un valor devuelvo el usuario filtrado
-  if (filter && value) {
-    return res.send(mockUsers.filter((user) => user[filter].includes(value)));
+    const {
+      query: { filter, value },
+    } = req;
+
+    // si no hay filtro y no hay value devuelvo todos los usuarios
+    if (!filter && !value) return res.send(mockUsers);
+    // si hay un filtro y un valor devuelvo el usuario filtrado
+    if (filter && value) {
+      return res.send(mockUsers.filter((user) => user[filter].includes(value)));
+    }
+    // si solo hay un filtro devuelvo el usuario filtrado
+    return res.send(mockUsers);
   }
-  // si solo hay un filtro devuelvo el usuario filtrado
-  return res.send(mockUsers);
-});
+);
 
-app.post("/api/users", (req, res) => {
-  const { body } = req;
-  const newUser = { id: mockUsers.length + 1, ...body };
-  mockUsers.push(newUser);
-  return res.status(201).send(newUser);
-});
+app.post(
+  "/api/users",
+  body("username")
+    .notEmpty()
+    .withMessage("Username cannot be empty")
+    .isLength({ min: 5, max: 32 })
+    .withMessage("Username must be at least 5 characters with a max of 32 characters")
+    .isString()
+    .withMessage("Username must be a string"),
+  body("displayname").notEmpty(),
+  (req, res) => {
+    const result = validationResult(req);
+
+    if (!result.isEmpty()) return res.status(400).send({ errors: result.array() });
+
+    const data = matchedData(req);
+
+    console.log(data);
+
+    const { body } = req;
+    const newUser = { id: mockUsers.length + 1, ...data };
+    mockUsers.push(newUser);
+    return res.status(201).send(newUser);
+  }
+);
 
 app.get("/api/users/:id", (req, res) => {
   const { findUserIndex } = req;
